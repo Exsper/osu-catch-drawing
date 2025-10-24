@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片转接水果谱面生成器</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .input-section, .preview-section, .output-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .input-section {
+            flex: 1;
+            min-width: 300px;
+        }
+        .preview-section {
+            flex: 1;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+        }
+        .output-section {
+            flex-basis: 100%;
+        }
+        .param-control {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        .value-display {
+            display: inline-block;
+            width: 50px;
+            text-align: right;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            max-width: 100%;
+            margin-top: 10px;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            font-family: monospace;
+            resize: vertical;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .info {
+            background-color: #e8f4fc;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        .preview-container {
+            position: relative;
+            overflow: hidden;
+        }
+        .preview-canvas {
+            background-color: #000;
+        }
+        .download-btn {
+            background-color: #27ae60;
+            margin-left: 10px;
+        }
+        .download-btn:hover {
+            background-color: #219955;
+        }
+        .calculation {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>图片转接水果谱面生成器</h1>
+    
+    <div class="container">
+        <div class="input-section">
+            <h2>输入设置</h2>
+            
+            <div class="param-control">
+                <label for="imageUpload">上传图片：</label>
+                <input type="file" id="imageUpload" accept="image/*">
+            </div>
+            
+            <div class="param-control">
+                <label for="csRange">圆圈大小 (CS): <span id="csValue" class="value-display">5</span></label>
+                <input type="range" id="csRange" min="0" max="10" step="0.1" value="5">
+            </div>
+            
+            <div class="param-control">
+                <label for="arRange">下落速度 (AR): <span id="arValue" class="value-display">9</span></label>
+                <input type="range" id="arRange" min="0" max="10" step="0.1" value="9">
+            </div>
+            
+            <div class="param-control">
+                <label for="densityRange">采样密度: <span id="densityValue" class="value-display">90</span>%</label>
+                <input type="range" id="densityRange" min="1" max="100" value="90">
+            </div>
+            
+            <div class="param-control">
+                <label for="thresholdRange">亮度阈值: <span id="thresholdValue" class="value-display">128</span></label>
+                <input type="range" id="thresholdRange" min="0" max="255" value="128">
+                <div style="font-size: 12px; color: #666;">低于此值的像素将被转换为圆圈</div>
+            </div>
+            
+            <div class="param-control">
+                <label for="timeScale">时间缩放: <span id="timeScaleValue" class="value-display">1.0</span>x</label>
+                <input type="range" id="timeScale" min="0.1" max="3" step="0.1" value="1.0">
+                <div style="font-size: 12px; color: #666;">调整谱面总时长</div>
+            </div>
+            
+            <button id="generateBtn">生成谱面代码</button>
+            
+            <div class="info">
+                <strong>计算说明：</strong>
+                <div id="calculationDetails" class="calculation">
+                    上传图片后，这里将显示计算详情
+                </div>
+                <ul>
+                    <li>圆圈半径: r = 54.4 - 4.48 * CS</li>
+                    <li>下落时间: AR&lt;5时 1200+120*(5-AR)ms, AR=5时 1200ms, AR>5时 1200-150*(AR-5)ms</li>
+                    <li>总时间 = 图片高度 * (下落时间/384) * 时间缩放</li>
+                    <li>图片底部对应时间0，顶部对应总时间</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="preview-section">
+            <h2>预览</h2>
+            <div class="preview-container">
+                <canvas id="originalCanvas"></canvas>
+            </div>
+            <div style="margin-top: 10px;">
+                <canvas id="previewCanvas" class="preview-canvas"></canvas>
+                <div style="margin-top: 5px; font-size: 12px; color: #666;">
+                    <span style="color: #fff; background: #000; padding: 2px 4px;">底部 = 时间0</span>
+                    <span style="color: #fff; background: #000; padding: 2px 4px; margin-left: 10px;">顶部 = 时间总长</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="output-section">
+            <h2>谱面代码</h2>
+            <textarea id="outputCode" placeholder="生成的谱面代码将显示在这里"></textarea>
+            <div style="margin-top: 10px;">
+                <button id="copyBtn">复制代码</button>
+                <button id="downloadBtn" class="download-btn">下载.osu文件</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取DOM元素
+            const imageUpload = document.getElementById('imageUpload');
+            const csRange = document.getElementById('csRange');
+            const arRange = document.getElementById('arRange');
+            const densityRange = document.getElementById('densityRange');
+            const thresholdRange = document.getElementById('thresholdRange');
+            const timeScale = document.getElementById('timeScale');
+            const csValue = document.getElementById('csValue');
+            const arValue = document.getElementById('arValue');
+            const densityValue = document.getElementById('densityValue');
+            const thresholdValue = document.getElementById('thresholdValue');
+            const timeScaleValue = document.getElementById('timeScaleValue');
+            const generateBtn = document.getElementById('generateBtn');
+            const copyBtn = document.getElementById('copyBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const outputCode = document.getElementById('outputCode');
+            const originalCanvas = document.getElementById('originalCanvas');
+            const previewCanvas = document.getElementById('previewCanvas');
+            const calculationDetails = document.getElementById('calculationDetails');
+            
+            const originalCtx = originalCanvas.getContext('2d');
+            const previewCtx = previewCanvas.getContext('2d');
+            
+            let originalImage = null;
+            let scaledHeight = 0;
+            
+            // 更新显示的值
+            csRange.addEventListener('input', () => csValue.textContent = csRange.value);
+            arRange.addEventListener('input', () => arValue.textContent = arRange.value);
+            densityRange.addEventListener('input', () => densityValue.textContent = densityRange.value);
+            thresholdRange.addEventListener('input', () => thresholdValue.textContent = thresholdRange.value);
+            timeScale.addEventListener('input', () => timeScaleValue.textContent = timeScale.value);
+            
+            // 处理图片上传
+            imageUpload.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        originalImage = img;
+                        displayOriginalImage();
+                        updateCalculationDetails();
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+            
+            // 显示原始图片
+            function displayOriginalImage() {
+                if (!originalImage) return;
+                
+                // 设置画布尺寸以适应图片，但宽度不超过512
+                const maxWidth = 512;
+                const scale = Math.min(maxWidth / originalImage.width, 1);
+                const displayWidth = originalImage.width * scale;
+                const displayHeight = originalImage.height * scale;
+                
+                originalCanvas.width = displayWidth;
+                originalCanvas.height = displayHeight;
+                
+                originalCtx.clearRect(0, 0, originalCanvas.width, originalCanvas.height);
+                originalCtx.drawImage(originalImage, 0, 0, displayWidth, displayHeight);
+                
+                // 同时更新预览画布
+                updatePreview();
+            }
+            
+            // 更新预览
+            function updatePreview() {
+                if (!originalImage) return;
+                
+                // 计算缩放后的尺寸
+                const targetWidth = 512;
+                const scale = targetWidth / originalImage.width;
+                scaledHeight = Math.floor(originalImage.height * scale);
+                
+                previewCanvas.width = targetWidth;
+                previewCanvas.height = scaledHeight;
+                
+                // 绘制原始图片
+                previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+                previewCtx.drawImage(originalImage, 0, 0, targetWidth, scaledHeight);
+                
+                // 应用灰度转换
+                const imageData = previewCtx.getImageData(0, 0, previewCanvas.width, previewCanvas.height);
+                const data = imageData.data;
+                
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    
+                    // 转换为灰度
+                    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                    
+                    // 根据阈值决定是否显示
+                    if (gray < thresholdRange.value) {
+                        data[i] = 255;     // R
+                        data[i + 1] = 255; // G
+                        data[i + 2] = 255; // B
+                        data[i + 3] = 255; // A
+                    } else {
+                        data[i + 3] = 0;   // 透明
+                    }
+                }
+                
+                previewCtx.putImageData(imageData, 0, 0);
+            }
+            
+            // 更新计算详情
+            function updateCalculationDetails() {
+                if (!originalImage) return;
+                
+                const cs = parseFloat(csRange.value);
+                const ar = parseFloat(arRange.value);
+                const scale = parseFloat(timeScale.value);
+                
+                // 计算圆圈半径
+                const circleRadius = 54.4 - 4.48 * cs;
+                
+                // 计算下落时间
+                let fallTime;
+                if (ar < 5) {
+                    fallTime = 1200 + 120 * (5 - ar);
+                } else if (ar === 5) {
+                    fallTime = 1200;
+                } else {
+                    fallTime = 1200 - 150 * (ar - 5);
+                }
+                
+                // 计算总时间
+                const totalTime = Math.floor(scaledHeight * (fallTime / 384) * scale);
+                
+                calculationDetails.innerHTML = 
+                    `圆圈半径: ${circleRadius.toFixed(2)}px<br>` +
+                    `下落时间: ${fallTime}ms<br>` +
+                    `图片高度: ${scaledHeight}px<br>` +
+                    `总时间: ${totalTime}ms (${(totalTime/1000).toFixed(1)}秒)<br>` +
+                    `时间映射: 底部=0ms, 顶部=${totalTime}ms`;
+            }
+            
+            // 生成谱面代码
+            generateBtn.addEventListener('click', function() {
+                if (!originalImage) {
+                    alert('请先上传图片');
+                    return;
+                }
+                
+                const cs = parseFloat(csRange.value);
+                const ar = parseFloat(arRange.value);
+                const density = parseInt(densityRange.value) / 100;
+                const threshold = parseInt(thresholdRange.value);
+                const scale = parseFloat(timeScale.value);
+                
+                // 计算圆圈半径
+                const circleRadius = 54.4 - 4.48 * cs;
+                
+                // 计算下落时间
+                let fallTime;
+                if (ar < 5) {
+                    fallTime = 1200 + 120 * (5 - ar);
+                } else if (ar === 5) {
+                    fallTime = 1200;
+                } else {
+                    fallTime = 1200 - 150 * (ar - 5);
+                }
+                
+                // 计算总时间
+                const totalTime = Math.floor(scaledHeight * (fallTime / 384) * scale);
+                
+                // 更新计算详情
+                updateCalculationDetails();
+                
+                // 创建临时画布处理图片
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = 512;
+                tempCanvas.height = scaledHeight;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(originalImage, 0, 0, 512, scaledHeight);
+                
+                // 获取图片数据
+                const imageData = tempCtx.getImageData(0, 0, 512, scaledHeight);
+                const data = imageData.data;
+                
+                // 生成谱面代码
+                let hitObjects = [];
+                
+                // 计算采样步长，基于圆圈半径和密度
+                const step = Math.max(1, Math.floor(circleRadius * 2 * (1 - density * 0.8)));
+                
+                // 从下到上扫描图片
+                for (let y = scaledHeight - 1; y >= 0; y -= step) {
+                    for (let x = 0; x < 512; x += step) {
+                        const index = (y * 512 + x) * 4;
+                        const r = data[index];
+                        const g = data[index + 1];
+                        const b = data[index + 2];
+                        
+                        // 转换为灰度
+                        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                        
+                        // 如果灰度值低于阈值，生成圆圈
+                        if (gray < threshold) {
+                            // 计算时间 (毫秒)
+                            // 将图片高度映射到总时间，底部对应时间0，顶部对应总时间
+                            const time = Math.floor(((scaledHeight - 1 - y) / scaledHeight) * totalTime);
+                            
+                            hitObjects.push({
+                                x: Math.floor(x),
+                                y: 192, // 固定y坐标
+                                time: time,
+                                type: 1, // 圆圈
+                                hitsound: 0,
+                                param: '0:0:0:0:'
+                            });
+                        }
+                    }
+                }
+                
+                // 按时间排序
+                hitObjects.sort((a, b) => a.time - b.time);
+                
+                // 生成代码字符串
+                let code = '';
+                hitObjects.forEach(obj => {
+                    code += `${obj.x},${obj.y},${obj.time},${obj.type},${obj.hitsound},${obj.param}\n`;
+                });
+                
+                outputCode.value = code;
+                
+                // 更新预览
+                updatePreview();
+            });
+            
+            // 复制代码
+            copyBtn.addEventListener('click', function() {
+                outputCode.select();
+                document.execCommand('copy');
+                alert('代码已复制到剪贴板');
+            });
+            
+            // 下载.osu文件
+            downloadBtn.addEventListener('click', function() {
+                if (!outputCode.value) {
+                    alert('请先生成谱面代码');
+                    return;
+                }
+                
+                const cs = parseFloat(csRange.value);
+                const ar = parseFloat(arRange.value);
+                
+                // 创建.osu文件内容
+                let osuContent = `osu file format v14
+
+[General]
+AudioFilename: audio.mp3
+AudioLeadIn: 0
+PreviewTime: -1
+Countdown: 0
+SampleSet: Normal
+StackLeniency: 0.7
+Mode: 0
+LetterboxInBreaks: 0
+WidescreenStoryboard: 1
+
+[Editor]
+DistanceSpacing: 1
+BeatDivisor: 4
+GridSize: 4
+TimelineZoom: 1
+
+[Metadata]
+Title:Generated Catch Map
+TitleUnicode:Generated Catch Map
+Artist:Unknown
+ArtistUnicode:Unknown
+Creator:Image to Catch Converter
+Version:Catch-${cs.toFixed(1)}-${ar.toFixed(1)}
+Source:
+Tags:converted image
+BeatmapID:0
+BeatmapSetID:-1
+
+[Difficulty]
+HPDrainRate:5
+CircleSize:${cs}
+OverallDifficulty:5
+ApproachRate:${ar}
+SliderMultiplier:1.4
+SliderTickRate:1
+
+[Events]
+//Background and Video events
+//Break Periods
+//Storyboard Layer 0 (Background)
+//Storyboard Layer 1 (Fail)
+//Storyboard Layer 2 (Pass)
+//Storyboard Layer 3 (Foreground)
+//Storyboard Sound Samples
+
+[TimingPoints]
+0,500,4,2,1,50,1,0
+
+[HitObjects]
+${outputCode.value}`;
+
+                // 创建下载链接
+                const blob = new Blob([osuContent], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'converted_catch_map.osu';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+            
+            // 当参数改变时更新计算详情
+            csRange.addEventListener('input', updateCalculationDetails);
+            arRange.addEventListener('input', updateCalculationDetails);
+            timeScale.addEventListener('input', updateCalculationDetails);
+            
+            // 初始化时更新参数显示
+            csValue.textContent = csRange.value;
+            arValue.textContent = arRange.value;
+            densityValue.textContent = densityRange.value;
+            thresholdValue.textContent = thresholdRange.value;
+            timeScaleValue.textContent = timeScale.value;
+        });
+    </script>
+</body>
+</html>
