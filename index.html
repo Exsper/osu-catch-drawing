@@ -121,94 +121,182 @@
             font-size: 12px;
             font-family: monospace;
         }
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .language-toggle {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .language-toggle:hover {
+            background-color: #5a6268;
+        }
     </style>
 </head>
 <body>
-    <h1>图片转接水果谱面生成器</h1>
+    <div class="header-container">
+        <h1 data-i18n="title">图片转接水果谱面生成器</h1>
+        <button id="languageToggle" class="language-toggle" data-i18n="language">English</button>
+    </div>
     
     <div class="container">
         <div class="input-section">
-            <h2>输入设置</h2>
+            <h2 data-i18n="inputSettings">输入设置</h2>
             
             <div class="param-control">
-                <label for="imageUpload">上传图片：</label>
+                <label for="imageUpload" data-i18n="uploadImage">上传图片：</label>
                 <input type="file" id="imageUpload" accept="image/*">
             </div>
             
             <div class="param-control">
-                <label for="csRange">圆圈大小 (CS): <span id="csValue" class="value-display">5</span></label>
+                <label for="csRange" data-i18n="circleSize">圆圈大小 (CS):</label>
+                <span id="csValue" class="value-display">5</span>
                 <input type="range" id="csRange" min="0" max="10" step="0.1" value="5">
             </div>
             
             <div class="param-control">
-                <label for="arRange">下落速度 (AR): <span id="arValue" class="value-display">9</span></label>
+                <label for="arRange" data-i18n="approachRate">下落速度 (AR):</label>
+                <span id="arValue" class="value-display">9</span>
                 <input type="range" id="arRange" min="0" max="10" step="0.1" value="9">
             </div>
             
             <div class="param-control">
-                <label for="densityRange">采样密度: <span id="densityValue" class="value-display">90</span>%</label>
+                <label for="densityRange" data-i18n="samplingDensity">采样密度:</label>
+                <span id="densityValue" class="value-display">90</span>%
                 <input type="range" id="densityRange" min="1" max="100" value="90">
             </div>
             
             <div class="param-control">
-                <label for="thresholdRange">亮度阈值: <span id="thresholdValue" class="value-display">128</span></label>
+                <label for="thresholdRange" data-i18n="brightnessThreshold">亮度阈值:</label>
+                <span id="thresholdValue" class="value-display">128</span>
                 <input type="range" id="thresholdRange" min="0" max="255" value="128">
-                <div style="font-size: 12px; color: #666;">低于此值的像素将被转换为圆圈</div>
+                <div style="font-size: 12px; color: #666;" data-i18n="thresholdDescription">低于此值的像素将被转换为圆圈</div>
             </div>
             
             <div class="param-control">
-                <label for="timeScale">时间缩放: <span id="timeScaleValue" class="value-display">1.0</span>x</label>
+                <label for="timeScale" data-i18n="timeScale">时间缩放:</label>
+                <span id="timeScaleValue" class="value-display">1.0</span>x
                 <input type="range" id="timeScale" min="0.1" max="3" step="0.1" value="1.0">
-                <div style="font-size: 12px; color: #666;">调整谱面总时长</div>
+                <div style="font-size: 12px; color: #666;" data-i18n="timeScaleDescription">调整谱面总时长</div>
             </div>
             
             <div class="param-control">
-                <label for="timeOffset">起始时间偏移 (t0):</label>
+                <label for="timeOffset" data-i18n="timeOffset">起始时间偏移 (t0):</label>
                 <input type="number" id="timeOffset" min="0" value="0" step="100">
-                <div style="font-size: 12px; color: #666;">所有物件时间将加上此偏移量(毫秒)</div>
+                <div style="font-size: 12px; color: #666;" data-i18n="timeOffsetDescription">所有物件时间将加上此偏移量(毫秒)</div>
             </div>
             
-            <button id="generateBtn">生成谱面代码</button>
+            <button id="generateBtn" data-i18n="generateCode">生成谱面代码</button>
             
             <div class="info">
-                <strong>计算说明：</strong>
+                <strong data-i18n="calculationExplanation">计算说明：</strong>
                 <div id="calculationDetails" class="calculation">
-                    上传图片后，这里将显示计算详情
+                    <span data-i18n="uploadImageFirst">上传图片后，这里将显示计算详情</span>
                 </div>
                 <ul>
-                    <li>圆圈半径: r = 54.4 - 4.48 * CS</li>
-                    <li>下落时间: AR&lt;5时 1200+120*(5-AR)ms, AR=5时 1200ms, AR>5时 1200-150*(AR-5)ms</li>
-                    <li>总时间 = 图片高度 * (下落时间/384) * 时间缩放</li>
-                    <li>图片底部对应时间0+t0，顶部对应总时间+t0</li>
+                    <li data-i18n="circleRadiusFormula">圆圈半径: r = 54.4 - 4.48 * CS</li>
+                    <li data-i18n="fallTimeFormula">下落时间: AR&lt;5时 1200+120*(5-AR)ms, AR=5时 1200ms, AR>5时 1200-150*(AR-5)ms</li>
+                    <li data-i18n="totalTimeFormula">总时间 = 图片高度 * (下落时间/384) * 时间缩放</li>
+                    <li data-i18n="timeMapping">图片底部对应时间0+t0，顶部对应总时间+t0</li>
                 </ul>
             </div>
         </div>
         
         <div class="preview-section">
-            <h2>预览</h2>
+            <h2 data-i18n="preview">预览</h2>
             <div class="preview-container">
                 <canvas id="originalCanvas"></canvas>
             </div>
             <div style="margin-top: 10px;">
                 <canvas id="previewCanvas" class="preview-canvas"></canvas>
                 <div style="margin-top: 5px; font-size: 12px; color: #666;">
-                    <span style="color: #fff; background: #000; padding: 2px 4px;">底部 = 时间0+t0</span>
-                    <span style="color: #fff; background: #000; padding: 2px 4px; margin-left: 10px;">顶部 = 时间总长+t0</span>
+                    <span style="color: #fff; background: #000; padding: 2px 4px;" data-i18n="bottomTime">底部 = 时间0+t0</span>
+                    <span style="color: #fff; background: #000; padding: 2px 4px; margin-left: 10px;" data-i18n="topTime">顶部 = 时间总长+t0</span>
                 </div>
             </div>
         </div>
         
         <div class="output-section">
-            <h2>谱面代码</h2>
-            <textarea id="outputCode" placeholder="生成的谱面代码将显示在这里"></textarea>
+            <h2 data-i18n="outputCode">谱面代码</h2>
+            <textarea id="outputCode" placeholder="生成的谱面代码将显示在这里" data-i18n-ph="codePlaceholder"></textarea>
             <div style="margin-top: 10px;">
-                <button id="copyBtn">复制代码</button>
-                <button id="downloadBtn" class="download-btn">下载.osu文件</button>
+                <button id="copyBtn" data-i18n="copyCode">复制代码</button>
+                <button id="downloadBtn" class="download-btn" data-i18n="downloadOsu">下载.osu文件</button>
             </div>
         </div>
     </div>
 
     <script>
+        // 语言资源
+        const resources = {
+            zh: {
+                "title": "图片转接水果谱面生成器",
+                "language": "English",
+                "inputSettings": "输入设置",
+                "uploadImage": "上传图片：",
+                "circleSize": "圆圈大小 (CS):",
+                "approachRate": "下落速度 (AR):",
+                "samplingDensity": "采样密度:",
+                "brightnessThreshold": "亮度阈值:",
+                "thresholdDescription": "低于此值的像素将被转换为圆圈",
+                "timeScale": "时间缩放:",
+                "timeScaleDescription": "调整谱面总时长",
+                "timeOffset": "起始时间偏移 (t0):",
+                "timeOffsetDescription": "所有物件时间将加上此偏移量(毫秒)",
+                "generateCode": "生成谱面代码",
+                "calculationExplanation": "计算说明：",
+                "uploadImageFirst": "上传图片后，这里将显示计算详情",
+                "circleRadiusFormula": "圆圈半径: r = 54.4 - 4.48 * CS",
+                "fallTimeFormula": "下落时间: AR<5时 1200+120*(5-AR)ms, AR=5时 1200ms, AR>5时 1200-150*(AR-5)ms",
+                "totalTimeFormula": "总时间 = 图片高度 * (下落时间/384) * 时间缩放",
+                "timeMapping": "图片底部对应时间0+t0，顶部对应总时间+t0",
+                "preview": "预览",
+                "bottomTime": "底部 = 时间0+t0",
+                "topTime": "顶部 = 时间总长+t0",
+                "outputCode": "谱面代码",
+                "codePlaceholder": "生成的谱面代码将显示在这里",
+                "copyCode": "复制代码",
+                "downloadOsu": "下载.osu文件"
+            },
+            en: {
+                "title": "Image to Catch the Beat Map Converter",
+                "language": "中文",
+                "inputSettings": "Input Settings",
+                "uploadImage": "Upload Image:",
+                "circleSize": "Circle Size (CS):",
+                "approachRate": "Approach Rate (AR):",
+                "samplingDensity": "Sampling Density:",
+                "brightnessThreshold": "Brightness Threshold:",
+                "thresholdDescription": "Pixels below this value will be converted to circles",
+                "timeScale": "Time Scale:",
+                "timeScaleDescription": "Adjust total map duration",
+                "timeOffset": "Start Time Offset (t0):",
+                "timeOffsetDescription": "All object times will be offset by this value (ms)",
+                "generateCode": "Generate Map Code",
+                "calculationExplanation": "Calculation Details:",
+                "uploadImageFirst": "Upload an image to see calculation details",
+                "circleRadiusFormula": "Circle radius: r = 54.4 - 4.48 * CS",
+                "fallTimeFormula": "Fall time: AR<5: 1200+120*(5-AR)ms, AR=5: 1200ms, AR>5: 1200-150*(AR-5)ms",
+                "totalTimeFormula": "Total time = Image height * (fall time/384) * time scale",
+                "timeMapping": "Image bottom = time 0+t0, top = total time+t0",
+                "preview": "Preview",
+                "bottomTime": "Bottom = time 0+t0",
+                "topTime": "Top = total time+t0",
+                "outputCode": "Map Code",
+                "codePlaceholder": "Generated map code will appear here",
+                "copyCode": "Copy Code",
+                "downloadOsu": "Download .osu File"
+            }
+        };
+
         document.addEventListener('DOMContentLoaded', function() {
             // 获取DOM元素
             const imageUpload = document.getElementById('imageUpload');
@@ -218,6 +306,7 @@
             const thresholdRange = document.getElementById('thresholdRange');
             const timeScale = document.getElementById('timeScale');
             const timeOffset = document.getElementById('timeOffset');
+            const languageToggle = document.getElementById('languageToggle');
             const csValue = document.getElementById('csValue');
             const arValue = document.getElementById('arValue');
             const densityValue = document.getElementById('densityValue');
@@ -236,6 +325,61 @@
             
             let originalImage = null;
             let scaledHeight = 0;
+            let currentLang = 'zh'; // 默认语言
+            
+            // 初始化语言
+            function initLanguage() {
+                // 尝试从localStorage获取语言设置
+                const savedLang = localStorage.getItem('mapConverterLanguage');
+                
+                if (savedLang) {
+                    currentLang = savedLang;
+                } else {
+                    // 根据浏览器语言自动检测
+                    const browserLang = navigator.language || navigator.userLanguage;
+                    currentLang = browserLang.startsWith('zh') ? 'zh' : 'en';
+                }
+                
+                applyLanguage(currentLang);
+            }
+            
+            // 应用语言
+            function applyLanguage(lang) {
+                currentLang = lang;
+                
+                // 更新所有带有data-i18n属性的元素
+                document.querySelectorAll('[data-i18n]').forEach(element => {
+                    const key = element.getAttribute('data-i18n');
+                    if (resources[lang][key]) {
+                        element.textContent = resources[lang][key];
+                    }
+                });
+                
+                // 更新所有带有data-i18n-ph属性的元素的placeholder
+                document.querySelectorAll('[data-i18n-ph]').forEach(element => {
+                    const key = element.getAttribute('data-i18n-ph');
+                    if (resources[lang][key]) {
+                        element.placeholder = resources[lang][key];
+                    }
+                });
+                
+                // 更新语言切换按钮文本
+                languageToggle.textContent = resources[lang]['language'];
+                
+                // 保存语言设置
+                localStorage.setItem('mapConverterLanguage', lang);
+                
+                // 更新计算详情（如果已上传图片）
+                if (originalImage) {
+                    updateCalculationDetails();
+                }
+            }
+            
+            // 语言切换事件
+            languageToggle.addEventListener('click', function() {
+                const newLang = currentLang === 'zh' ? 'en' : 'zh';
+                applyLanguage(newLang);
+            });
             
             // 更新显示的值
             csRange.addEventListener('input', () => csValue.textContent = csRange.value);
@@ -347,21 +491,33 @@
                 }
                 
                 // 计算总时间
-                const totalTime = Math.floor(scaledHeight * (fallTime / 432) * scale);
+                const totalTime = Math.floor(scaledHeight * (fallTime / 384) * scale);
                 
                 calculationDetails.innerHTML = 
-                    `圆圈半径: ${circleRadius.toFixed(2)}px<br>` +
-                    `下落时间: ${fallTime}ms<br>` +
-                    `图片高度: ${scaledHeight}px<br>` +
-                    `总时间: ${totalTime}ms (${(totalTime/1000).toFixed(1)}秒)<br>` +
-                    `时间偏移: ${t0}ms<br>` +
-                    `时间映射: 底部=${t0}ms, 顶部=${totalTime + t0}ms`;
+                    (currentLang === 'zh' ? 
+                    `圆圈半径: ${circleRadius.toFixed(2)}px<br>` :
+                    `Circle radius: ${circleRadius.toFixed(2)}px<br>`) +
+                    (currentLang === 'zh' ? 
+                    `下落时间: ${fallTime}ms<br>` :
+                    `Fall time: ${fallTime}ms<br>`) +
+                    (currentLang === 'zh' ? 
+                    `图片高度: ${scaledHeight}px<br>` :
+                    `Image height: ${scaledHeight}px<br>`) +
+                    (currentLang === 'zh' ? 
+                    `总时间: ${totalTime}ms (${(totalTime/1000).toFixed(1)}秒)<br>` :
+                    `Total time: ${totalTime}ms (${(totalTime/1000).toFixed(1)}s)<br>`) +
+                    (currentLang === 'zh' ? 
+                    `时间偏移: ${t0}ms<br>` :
+                    `Time offset: ${t0}ms<br>`) +
+                    (currentLang === 'zh' ? 
+                    `时间映射: 底部=${t0}ms, 顶部=${totalTime + t0}ms` :
+                    `Time mapping: Bottom=${t0}ms, Top=${totalTime + t0}ms`);
             }
             
             // 生成谱面代码
             generateBtn.addEventListener('click', function() {
                 if (!originalImage) {
-                    alert('请先上传图片');
+                    alert(currentLang === 'zh' ? '请先上传图片' : 'Please upload an image first');
                     return;
                 }
                 
@@ -456,13 +612,13 @@
             copyBtn.addEventListener('click', function() {
                 outputCode.select();
                 document.execCommand('copy');
-                alert('代码已复制到剪贴板');
+                alert(currentLang === 'zh' ? '代码已复制到剪贴板' : 'Code copied to clipboard');
             });
             
             // 下载.osu文件
             downloadBtn.addEventListener('click', function() {
                 if (!outputCode.value) {
-                    alert('请先生成谱面代码');
+                    alert(currentLang === 'zh' ? '请先生成谱面代码' : 'Please generate map code first');
                     return;
                 }
                 
@@ -548,6 +704,9 @@ ${outputCode.value}`;
             densityValue.textContent = densityRange.value;
             thresholdValue.textContent = thresholdRange.value;
             timeScaleValue.textContent = timeScale.value;
+            
+            // 初始化语言
+            initLanguage();
         });
     </script>
 </body>
