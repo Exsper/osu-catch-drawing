@@ -139,6 +139,43 @@
         .language-toggle:hover {
             background-color: #5a6268;
         }
+        .algorithm-control {
+            margin-top: 15px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+        .preview-tabs {
+            display: flex;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .preview-tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            margin-right: 5px;
+        }
+        .preview-tab.active {
+            background: #fff;
+            border-bottom: 1px solid #fff;
+            margin-bottom: -1px;
+        }
+        .preview-content {
+            display: none;
+        }
+        .preview-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -166,6 +203,16 @@
                 <label for="arRange" data-i18n="approachRate">下落速度 (AR):</label>
                 <span id="arValue" class="value-display">9</span>
                 <input type="range" id="arRange" min="0" max="10" step="0.1" value="9">
+            </div>
+            
+            <div class="param-control">
+                <label for="algorithmSelect" data-i18n="algorithm">算法选择:</label>
+                <select id="algorithmSelect">
+                    <option value="simple" data-i18n="simpleAlgorithm">简单像素扫描</option>
+                    <option value="contour" data-i18n="contourAlgorithm">轮廓提取算法</option>
+                    <option value="adaptive" data-i18n="adaptiveAlgorithm">自适应圆覆盖</option>
+                </select>
+                <div style="font-size: 12px; color: #666;" data-i18n="algorithmDescription">选择不同的图像处理算法来优化圆的数量和分布</div>
             </div>
             
             <div class="param-control">
@@ -212,16 +259,36 @@
         
         <div class="preview-section">
             <h2 data-i18n="preview">预览</h2>
-            <div class="preview-container">
-                <canvas id="originalCanvas"></canvas>
+            
+            <div class="preview-tabs">
+                <div class="preview-tab active" data-tab="original">原始图片</div>
+                <div class="preview-tab" data-tab="binary">二值化预览</div>
+                <div class="preview-tab" data-tab="circles">圆圈预览</div>
             </div>
-            <div style="margin-top: 10px;">
+            
+            <div class="preview-content active" id="originalPreview">
+                <div class="preview-container">
+                    <canvas id="originalCanvas"></canvas>
+                </div>
+            </div>
+            
+            <div class="preview-content" id="binaryPreview">
                 <canvas id="previewCanvas" class="preview-canvas"></canvas>
                 <div style="margin-top: 5px; font-size: 12px; color: #666;">
                     <span style="color: #fff; background: #000; padding: 2px 4px;" data-i18n="bottomTime">底部 = 时间0+t0</span>
                     <span style="color: #fff; background: #000; padding: 2px 4px; margin-left: 10px;" data-i18n="topTime">顶部 = 时间总长+t0</span>
                 </div>
             </div>
+            
+            <div class="preview-content" id="circlesPreview">
+                <canvas id="circlesCanvas" class="preview-canvas"></canvas>
+                <div style="margin-top: 5px; font-size: 12px; color: #666;">
+                    <span style="color: #fff; background: #000; padding: 2px 4px;" data-i18n="bottomTime">底部 = 时间0+t0</span>
+                    <span style="color: #fff; background: #000; padding: 2px 4px; margin-left: 10px;" data-i18n="topTime">顶部 = 时间总长+t0</span>
+                </div>
+            </div>
+            
+            <div id="algorithmStats" style="margin-top: 10px; font-size: 12px;"></div>
         </div>
         
         <div class="output-section">
@@ -244,6 +311,11 @@
                 "uploadImage": "上传图片：",
                 "circleSize": "圆圈大小 (CS):",
                 "approachRate": "下落速度 (AR):",
+                "algorithm": "算法选择:",
+                "simpleAlgorithm": "简单像素扫描",
+                "contourAlgorithm": "轮廓提取算法",
+                "adaptiveAlgorithm": "自适应圆覆盖",
+                "algorithmDescription": "选择不同的图像处理算法来优化圆的数量和分布",
                 "samplingDensity": "采样密度:",
                 "brightnessThreshold": "亮度阈值:",
                 "thresholdDescription": "低于此值的像素将被转换为圆圈",
@@ -273,6 +345,11 @@
                 "uploadImage": "Upload Image:",
                 "circleSize": "Circle Size (CS):",
                 "approachRate": "Approach Rate (AR):",
+                "algorithm": "Algorithm:",
+                "simpleAlgorithm": "Simple Pixel Scan",
+                "contourAlgorithm": "Contour Extraction",
+                "adaptiveAlgorithm": "Adaptive Circle Coverage",
+                "algorithmDescription": "Select different image processing algorithms to optimize circle count and distribution",
                 "samplingDensity": "Sampling Density:",
                 "brightnessThreshold": "Brightness Threshold:",
                 "thresholdDescription": "Pixels below this value will be converted to circles",
@@ -302,6 +379,7 @@
             const imageUpload = document.getElementById('imageUpload');
             const csRange = document.getElementById('csRange');
             const arRange = document.getElementById('arRange');
+            const algorithmSelect = document.getElementById('algorithmSelect');
             const densityRange = document.getElementById('densityRange');
             const thresholdRange = document.getElementById('thresholdRange');
             const timeScale = document.getElementById('timeScale');
@@ -318,14 +396,18 @@
             const outputCode = document.getElementById('outputCode');
             const originalCanvas = document.getElementById('originalCanvas');
             const previewCanvas = document.getElementById('previewCanvas');
+            const circlesCanvas = document.getElementById('circlesCanvas');
             const calculationDetails = document.getElementById('calculationDetails');
+            const algorithmStats = document.getElementById('algorithmStats');
             
             const originalCtx = originalCanvas.getContext('2d');
             const previewCtx = previewCanvas.getContext('2d');
+            const circlesCtx = circlesCanvas.getContext('2d');
             
             let originalImage = null;
             let scaledHeight = 0;
             let currentLang = 'zh'; // 默认语言
+            let currentHitObjects = [];
             
             // 初始化语言
             function initLanguage() {
@@ -366,6 +448,15 @@
                 // 更新语言切换按钮文本
                 languageToggle.textContent = resources[lang]['language'];
                 
+                // 更新算法选择下拉菜单
+                const algorithmOptions = algorithmSelect.querySelectorAll('option');
+                algorithmOptions.forEach(option => {
+                    const key = option.getAttribute('data-i18n');
+                    if (resources[lang][key]) {
+                        option.textContent = resources[lang][key];
+                    }
+                });
+                
                 // 保存语言设置
                 localStorage.setItem('mapConverterLanguage', lang);
                 
@@ -379,6 +470,30 @@
             languageToggle.addEventListener('click', function() {
                 const newLang = currentLang === 'zh' ? 'en' : 'zh';
                 applyLanguage(newLang);
+            });
+            
+            // 预览标签切换
+            document.querySelectorAll('.preview-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    
+                    // 更新标签状态
+                    document.querySelectorAll('.preview-tab').forEach(t => {
+                        t.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    
+                    // 更新内容显示
+                    document.querySelectorAll('.preview-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(tabId + 'Preview').classList.add('active');
+                    
+                    // 如果是圆圈预览且已生成圆圈，则绘制圆圈
+                    if (tabId === 'circles' && currentHitObjects.length > 0) {
+                        drawCirclesPreview();
+                    }
+                });
             });
             
             // 更新显示的值
@@ -437,8 +552,10 @@
                 
                 previewCanvas.width = targetWidth;
                 previewCanvas.height = scaledHeight;
+                circlesCanvas.width = targetWidth;
+                circlesCanvas.height = scaledHeight;
                 
-                // 绘制原始图片
+                // 绘制原始图片到预览画布
                 previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
                 previewCtx.drawImage(originalImage, 0, 0, targetWidth, scaledHeight);
                 
@@ -514,6 +631,189 @@
                     `Time mapping: Bottom=${t0}ms, Top=${totalTime + t0}ms`);
             }
             
+            // 绘制圆圈预览
+            function drawCirclesPreview() {
+                if (!originalImage || currentHitObjects.length === 0) return;
+                
+                // 清除画布
+                circlesCtx.clearRect(0, 0, circlesCanvas.width, circlesCanvas.height);
+                
+                // 绘制原始图片作为背景
+                circlesCtx.drawImage(originalImage, 0, 0, circlesCanvas.width, circlesCanvas.height);
+                
+                // 设置圆圈样式
+                circlesCtx.fillStyle = 'rgba(255, 0, 0, 0.3)'; // 半透明红色
+                circlesCtx.strokeStyle = 'rgba(255, 0, 0, 0.7)'; // 红色边框
+                circlesCtx.lineWidth = 2;
+                
+                // 计算圆圈半径
+                const cs = parseFloat(csRange.value);
+                const circleRadius = 54.4 - 4.48 * cs;
+                
+                // 绘制所有圆圈
+                for (const obj of currentHitObjects) {
+                    circlesCtx.beginPath();
+                    circlesCtx.arc(obj.x, obj.y, circleRadius, 0, Math.PI * 2);
+                    circlesCtx.fill();
+                    circlesCtx.stroke();
+                }
+            }
+            
+            // 算法实现
+            function applySimplePixelScan(imageData, width, height, threshold, circleRadius, density, totalTime, t0) {
+                const data = imageData.data;
+                const hitObjects = [];
+                
+                // 计算采样步长，基于圆圈半径和密度
+                const step = Math.max(1, Math.floor(circleRadius * 2 * (1 - density * 0.8)));
+                
+                // 从下到上扫描图片
+                for (let y = height - 1; y >= 0; y -= step) {
+                    for (let x = 0; x < width; x += step) {
+                        const index = (y * width + x) * 4;
+                        const r = data[index];
+                        const g = data[index + 1];
+                        const b = data[index + 2];
+                        
+                        // 转换为灰度
+                        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                        
+                        // 如果灰度值低于阈值，生成圆圈
+                        if (gray < threshold) {
+                            // 计算时间 (毫秒)
+                            const time = Math.floor(((height - 1 - y) / height) * totalTime);
+                            
+                            hitObjects.push({
+                                x: Math.floor(x),
+                                y: y, // 使用图片中的y坐标，而不是固定192
+                                time: time + t0,
+                                type: 1,
+                                hitsound: 0,
+                                param: '0:0:0:0:'
+                            });
+                        }
+                    }
+                }
+                
+                return hitObjects;
+            }
+            
+            function applyContourExtraction(imageData, width, height, threshold, circleRadius, density, totalTime, t0) {
+                const data = imageData.data;
+                const hitObjects = [];
+                
+                // 创建二值化图像
+                const binary = new Uint8Array(width * height);
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        const index = (y * width + x) * 4;
+                        const r = data[index];
+                        const g = data[index + 1];
+                        const b = data[index + 2];
+                        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                        binary[y * width + x] = gray < threshold ? 1 : 0;
+                    }
+                }
+                
+                // 查找轮廓点
+                const contourPoints = [];
+                for (let y = 1; y < height - 1; y++) {
+                    for (let x = 1; x < width - 1; x++) {
+                        const idx = y * width + x;
+                        if (binary[idx] === 1) {
+                            // 检查周围像素，如果有一个是0，则是轮廓点
+                            if (binary[idx - 1] === 0 || binary[idx + 1] === 0 || 
+                                binary[idx - width] === 0 || binary[idx + width] === 0) {
+                                contourPoints.push({x, y});
+                            }
+                        }
+                    }
+                }
+                
+                // 在轮廓点上放置圆圈
+                const step = Math.max(1, Math.floor(circleRadius * (1 - density * 0.5)));
+                for (let i = 0; i < contourPoints.length; i += step) {
+                    const point = contourPoints[i];
+                    const time = Math.floor(((height - 1 - point.y) / height) * totalTime);
+                    
+                    hitObjects.push({
+                        x: point.x,
+                        y: point.y,
+                        time: time + t0,
+                        type: 1,
+                        hitsound: 0,
+                        param: '0:0:0:0:'
+                    });
+                }
+                
+                return hitObjects;
+            }
+            
+            function applyAdaptiveCircleCoverage(imageData, width, height, threshold, circleRadius, density, totalTime, t0) {
+                const data = imageData.data;
+                const hitObjects = [];
+                
+                // 创建二值化图像
+                const binary = new Uint8Array(width * height);
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        const index = (y * width + x) * 4;
+                        const r = data[index];
+                        const g = data[index + 1];
+                        const b = data[index + 2];
+                        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                        binary[y * width + x] = gray < threshold ? 1 : 0;
+                    }
+                }
+                
+                // 计算采样步长
+                const step = Math.max(1, Math.floor(circleRadius * (1 - density * 0.5)));
+                
+                // 从下到上扫描，使用自适应策略
+                for (let y = height - 1; y >= 0; y -= step) {
+                    for (let x = 0; x < width; x += step) {
+                        const idx = y * width + x;
+                        
+                        // 如果当前点是黑色
+                        if (binary[idx] === 1) {
+                            // 检查周围区域，确定是否放置圆圈
+                            let shouldPlace = true;
+                            
+                            // 检查附近是否已经有圆圈覆盖这个区域
+                            for (let obj of hitObjects) {
+                                const dx = obj.x - x;
+                                const dy = obj.y - y;
+                                const distance = Math.sqrt(dx * dx + dy * dy);
+                                
+                                // 如果已有圆圈覆盖这个区域，跳过
+                                if (distance < circleRadius * 0.8) {
+                                    shouldPlace = false;
+                                    break;
+                                }
+                            }
+                            
+                            if (shouldPlace) {
+                                const time = Math.floor(((height - 1 - y) / height) * totalTime);
+                                
+                                hitObjects.push({
+                                    x: x,
+                                    y: y,
+                                    time: time + t0,
+                                    type: 1,
+                                    hitsound: 0,
+                                    param: '0:0:0:0:'
+                                });
+                                
+                                // 跳过这个圆圈覆盖的区域
+                                x += Math.floor(circleRadius * 0.7);
+                            }
+                        }
+                    }
+                }
+                
+                return hitObjects;
+            }
+            
             // 生成谱面代码
             generateBtn.addEventListener('click', function() {
                 if (!originalImage) {
@@ -523,6 +823,7 @@
                 
                 const cs = parseFloat(csRange.value);
                 const ar = parseFloat(arRange.value);
+                const algorithm = algorithmSelect.value;
                 const density = parseInt(densityRange.value) / 100;
                 const threshold = parseInt(thresholdRange.value);
                 const scale = parseFloat(timeScale.value);
@@ -556,56 +857,62 @@
                 
                 // 获取图片数据
                 const imageData = tempCtx.getImageData(0, 0, 512, scaledHeight);
-                const data = imageData.data;
                 
-                // 生成谱面代码
-                let hitObjects = [];
+                // 根据选择的算法生成圆圈
+                let hitObjects;
+                const startTime = performance.now();
                 
-                // 计算采样步长，基于圆圈半径和密度
-                const step = Math.max(1, Math.floor(circleRadius * 2 * (1 - density * 0.8)));
-                
-                // 从下到上扫描图片
-                for (let y = scaledHeight - 1; y >= 0; y -= step) {
-                    for (let x = 0; x < 512; x += step) {
-                        const index = (y * 512 + x) * 4;
-                        const r = data[index];
-                        const g = data[index + 1];
-                        const b = data[index + 2];
-                        
-                        // 转换为灰度
-                        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-                        
-                        // 如果灰度值低于阈值，生成圆圈
-                        if (gray < threshold) {
-                            // 计算时间 (毫秒)
-                            // 将图片高度映射到总时间，底部对应时间0，顶部对应总时间
-                            const time = Math.floor(((scaledHeight - 1 - y) / scaledHeight) * totalTime);
-                            
-                            hitObjects.push({
-                                x: Math.floor(x),
-                                y: 192, // 固定y坐标
-                                time: time + t0, // 加上时间偏移
-                                type: 1, // 圆圈
-                                hitsound: 0,
-                                param: '0:0:0:0:'
-                            });
-                        }
-                    }
+                switch(algorithm) {
+                    case 'simple':
+                        hitObjects = applySimplePixelScan(imageData, 512, scaledHeight, threshold, circleRadius, density, totalTime, t0);
+                        break;
+                    case 'contour':
+                        hitObjects = applyContourExtraction(imageData, 512, scaledHeight, threshold, circleRadius, density, totalTime, t0);
+                        break;
+                    case 'adaptive':
+                        hitObjects = applyAdaptiveCircleCoverage(imageData, 512, scaledHeight, threshold, circleRadius, density, totalTime, t0);
+                        break;
+                    default:
+                        hitObjects = applySimplePixelScan(imageData, 512, scaledHeight, threshold, circleRadius, density, totalTime, t0);
                 }
+                
+                const endTime = performance.now();
+                const processingTime = (endTime - startTime).toFixed(2);
                 
                 // 按时间排序
                 hitObjects.sort((a, b) => a.time - b.time);
                 
+                // 保存当前生成的圆圈
+                currentHitObjects = hitObjects;
+                
                 // 生成代码字符串
                 let code = '';
                 hitObjects.forEach(obj => {
-                    code += `${obj.x},${obj.y},${obj.time},${obj.type},${obj.hitsound},${obj.param}\n`;
+                    // 注意：在最终代码中，y坐标固定为192
+                    code += `${obj.x},192,${obj.time},${obj.type},${obj.hitsound},${obj.param}\n`;
                 });
                 
                 outputCode.value = code;
                 
+                // 更新算法统计信息
+                const algorithmNames = {
+                    'simple': currentLang === 'zh' ? '简单像素扫描' : 'Simple Pixel Scan',
+                    'contour': currentLang === 'zh' ? '轮廓提取算法' : 'Contour Extraction',
+                    'adaptive': currentLang === 'zh' ? '自适应圆覆盖' : 'Adaptive Circle Coverage'
+                };
+                
+                algorithmStats.innerHTML = 
+                    (currentLang === 'zh' ? 
+                    `算法: ${algorithmNames[algorithm]} | 圆圈数量: ${hitObjects.length} | 处理时间: ${processingTime}ms` :
+                    `Algorithm: ${algorithmNames[algorithm]} | Circles: ${hitObjects.length} | Processing time: ${processingTime}ms`);
+                
                 // 更新预览
                 updatePreview();
+                
+                // 如果当前显示的是圆圈预览，则绘制圆圈
+                if (document.querySelector('.preview-tab[data-tab="circles"]').classList.contains('active')) {
+                    drawCirclesPreview();
+                }
             });
             
             // 复制代码
